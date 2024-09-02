@@ -12,11 +12,30 @@ api = Blueprint('api', __name__)
 CORS(api)
 
 
-@api.route('/hello', methods=['POST', 'GET'])
-def handle_hello():
+@api.route("/users", methods = ["GET"])
+def get_users():
+    users = User.query.all()
+    return jsonify ([user.serialize() for user in users])
 
-    response_body = {
-        "message": "Hello! I'm a message that came from the backend, check the network tab on the google inspector and you will see the GET request"
-    }
 
-    return jsonify(response_body), 200
+@api.route("/user/<int:user_id>", methods = ["GET"])
+def get_user(user_id):
+    user = User.query.get_or_404(user_id)
+    return jsonify (user.serialize())
+
+
+@api.route ("/user", methods = ["POST"])
+def create_user():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No input data provided"}), 400
+    
+    new_user = User (
+        name = data.get ("name"),
+        username = data.get ("username"),
+        email = data.get ("email"),
+        password = data.get ("password")  # pendiente hasear contraseña
+    )
+    db.session.add (new_user)
+    db.session.commit()
+    return jsonify (new_user.serialize()), 200

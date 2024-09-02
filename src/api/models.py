@@ -1,4 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, ForeignKey, Enum, Integer, String, Date
+from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import create_engine
+
 
 db = SQLAlchemy()
 
@@ -47,7 +51,7 @@ class Cocktail(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     preparation_steps = db.Column(db.Text, nullable=False)
-    flavor_profile = db.Column(db.Enum('sweet', 'sour', 'bitter', 'salty', 'umami'), nullable=False)
+    flavor_profile = db.Column(db.Enum('sweet', 'sour', 'bitter', 'salty', 'umami',name='cocktail_enum'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     creation_date = db.Column(db.DateTime, default=db.func.current_timestamp())
 
@@ -71,7 +75,7 @@ class Dish(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     preparation_steps = db.Column(db.Text, nullable=False)
-    flavor_profile = db.Column(db.Enum('sweet', 'sour', 'bitter', 'salty', 'umami'), nullable=False)
+    flavor_profile = db.Column(db.Enum('sweet', 'sour', 'bitter', 'salty', 'umami',  name='flavor_profile_enum'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     creation_date = db.Column(db.DateTime, default=db.func.current_timestamp())
 
@@ -285,7 +289,7 @@ class Notification(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    type = db.Column(db.Enum('comment', 'message', 'new_follower', 'other'), nullable=False)
+    type = db.Column(db.Enum('comment', 'message', 'new_follower', 'other',  name='notification_enum'), nullable=False)
     content = db.Column(db.Text)
     read = db.Column(db.Boolean, default=False)
     date = db.Column(db.DateTime, default=db.func.current_timestamp())
