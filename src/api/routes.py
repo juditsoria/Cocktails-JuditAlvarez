@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Ingredient
+from api.models import db, User, Ingredient, CocktailIngredient, Cocktail
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
@@ -108,7 +108,7 @@ def get_ingredient(Ingredient_id):
 def create_ingredient():
     data = request.json
     if not data:
-        return jsonify ({"Error" : "Not imput data provider"}), 404
+        return jsonify ({"Error" : "Not imput data provided"}), 404
     ingredient = data.get
     if not ingredient:
         return jsonify ({"Error" : "Ingredient is required"})
@@ -119,3 +119,49 @@ def create_ingredient():
     db.session.commit()
 
     return jsonify(new_ingredient.serialize())
+
+@api.route("/update-ingredient/<int:Ingredient_id>", methods=["PUT"]) 
+def update_ingredient(Ingredient_id):
+    data = request.json
+    if not data:
+        return jsonify ({"Error" : "not input data provided"}), 400
+    ingredient = Ingredient.query.get(Ingredient_id)
+    if not ingredient:
+        return jsonify ({"Error" : "Ingredient not found"}), 404
+    ingredient.name = data.get( "name", Ingredient.name)
+    try:
+        db.session.commit()
+    except Exception as e:
+            db.session.rollback()
+            return jsonify({"error" : str(e)}), 500
+   
+
+    return jsonify ({"msg" : "Ingredient updated succesfuly"}), 200
+
+@api.route("/delete-ingredient/<int:Ingredient_id>", methods = ["DELETE"])
+def delete_ingredient(Ingredient_id):
+    ingredient = Ingredient.query.get(Ingredient_id)
+    if not ingredient:
+        return jsonify ({"Error" : " Ingredient not found"}), 404
+    
+    try:
+        db.session.delete (ingredient)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+    return jsonify ({"msg" : "Ingredient delete succesfuly"})
+                                                                
+
+@api.route("/cocktails", methods = ["GET"])
+def get_cocktails():
+    cocktails = Cocktail.query.all()
+    return jsonify ([cocktail.serialize() for cocktail in cocktails])
+
+
+
+@api.route ("/cocktail/<int:Cocktail_id>", methods = ["GET"])
+def get_cocktail(Cocktail_id):
+    cocktail = Cocktail.query.get_or_404(Cocktail_id)
+    return jsonify (cocktail.serialize())
