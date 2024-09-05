@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Ingredient, CocktailIngredient, Cocktail
+from api.models import db, User, Ingredient, Cocktail, Dish
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
@@ -113,7 +113,8 @@ def create_ingredient():
     if not ingredient:
         return jsonify ({"Error" : "Ingredient is required"})
     new_ingredient = Ingredient (
-        name = data.get ("name")
+        name = data.get ("name"),
+        type = data.get("type")
     )
     db.session.add(new_ingredient)
     db.session.commit()
@@ -165,3 +166,118 @@ def get_cocktails():
 def get_cocktail(Cocktail_id):
     cocktail = Cocktail.query.get_or_404(Cocktail_id)
     return jsonify (cocktail.serialize())
+
+
+@api.route("/post-cocktail", methods =["POST"])
+def create_cocktail():
+    data = request.json
+    if not data:
+        return jsonify({"Error" : "not input data provided"}), 400
+    cocktail = data.get
+    if not cocktail:
+        return jsonify ({"Error" : "Cocktail is required"}), 404
+    new_cocktail = Cocktail (
+        name = data.get ("name"),
+        preparation_steps = data.get ("preparation_steps"),
+        flavor_profile = data.get ("flavor_profile")
+    )
+    db.session.add(new_cocktail)
+    db.session.commit()
+    return jsonify(new_cocktail.serialize())
+
+
+
+@api.route("/update-cocktail/<int:Cocktail_id>", methods=["PUT"])
+def update_cocktail(Cocktail_id):
+    data = request.json
+    if not data: ({"Error" : "not input data provided"}), 400
+    cocktail = Cocktail.query.get (Cocktail_id)
+    if not cocktail: ({"Error": "Cocktail not found"}), 404
+    cocktail.name = data.get ("name", Cocktail.name)
+    cocktail.preparation_steps = data.get ("preparation_steps", Cocktail.preparation_steps)
+    cocktail.flavor_profile = data.get ("flavor_profile", Cocktail.flavor_profile)
+    try:
+        db.session.commit()
+        return jsonify({"Success": "Cocktail updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"Error" : str(e)}), 500
+    
+
+
+@api.route("/delete-cocktail/<int:Cocktail_id>", methods=["DELETE"])
+def delete_cocktail(Cocktail_id):
+    cocktail = Cocktail.query.get(Cocktail_id)
+    if not cocktail:
+        return jsonify({"Error" : "Cocktail not found"}), 404
+    try:
+        db.session.delete(cocktail)
+        db.session.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify ({"Error" : str(e)}), 500
+    
+    return jsonify ({"msg" : "Ingredient delete succesfuly"})
+
+
+
+@api.route("/get-dishes", methods =["GET"])
+def get_dishes():
+    dishes = Dish.query.all()
+    return jsonify ([dish.serialize()for dish in dishes])
+    
+
+
+@api.route("/get-dish/<int:Dish_id>", methods=["GET"])
+def get_dish(Dish_id):
+    dish = Dish.query.get_or_404(Dish_id)
+    return jsonify (dish.serialize())
+
+
+@api.route("/post-dish", methods=["POST"])
+def post_dish():
+    data= request.json
+    if not data: ({"Error" : "not input data provided"})
+    dish = data.get
+    if not dish: ({"Error":"Dish is required"})
+    new_dish = Dish (
+        name = data.get ("name"),
+        preparation_steps = data.get ("preparation_steps"),
+        flavor_profile = data.get ("flavor_profile")
+    )
+    db.session.add(new_dish)
+    db.session.commit()
+    return jsonify(new_dish.serialize())
+
+
+@api.route("/update-dish/<int:Dish_id>", methods=["PUT"])
+def update_dish(Dish_id):
+    data = request.json
+    if not data: ({"Error" : "not input data provided"}), 400
+    dish = Dish.query.get (Dish_id)
+    if not dish: ({"Error": "Dish not found"}), 404
+    dish.name = data.get ("name", Dish.name)
+    dish.preparation_steps = data.get ("preparation_steps", Dish.preparation_steps)
+    dish.flavor_profile = data.get ("flavor_profile", Dish.flavor_profile)
+    try:
+        db.session.commit()
+        return jsonify({"Success": "Dish updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"Error" : str(e)}), 500
+    
+
+
+@api.route("/delete-dish/<int:Dish_id>", methods=["DELETE"])
+def delete_dish(Dish_id):
+    dish = Dish.query.get(Dish_id)
+    if not dish:
+        return jsonify({"Error" : "Dish not found"}), 404
+    try:
+        db.session.delete(dish)
+        db.session.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify ({"Error" : str(e)}), 500
+    
+    return jsonify ({"msg" : "Dish delete succesfuly"})

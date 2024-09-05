@@ -36,14 +36,19 @@ class Ingredient(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    type = db.Column(
+        Enum('dish', 'cocktail', name='ingredient_type'),
+        nullable=False
+    )
 
     def __repr__(self):
-        return f'<Ingredient {self.name}>'
+        return f'<Ingredient {self.name}, Type: {self.type}>'
 
     def serialize(self):
         return {
             "id": self.id,
-            "name": self.name
+            "name": self.name,
+            "type": self.type
         }
 class Cocktail(db.Model):
     __tablename__ = 'cocktails'
@@ -93,48 +98,7 @@ class Dish(db.Model):
             "user_id": self.user_id,
             "creation_date": self.creation_date
         }
-class CocktailIngredient(db.Model):
-    __tablename__ = 'cocktail_ingredients'
 
-    cocktail_id = db.Column(db.Integer, db.ForeignKey('cocktails.id'), primary_key=True)
-    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredients.id'), primary_key=True)
-    quantity = db.Column(db.String(50))
-    unit = db.Column(db.String(20))
-
-    cocktail = db.relationship('Cocktail', backref=db.backref('cocktail_ingredients', lazy=True))
-    ingredient = db.relationship('Ingredient', backref=db.backref('cocktail_ingredients', lazy=True))
-
-    def __repr__(self):
-        return f'<CocktailIngredient Cocktail: {self.cocktail_id}, Ingredient: {self.ingredient_id}>'
-
-    def serialize(self):
-        return {
-            "cocktail_id": self.cocktail_id,
-            "ingredient_id": self.ingredient_id,
-            "quantity": self.quantity,
-            "unit": self.unit
-        }
-class DishIngredient(db.Model):
-    __tablename__ = 'dish_ingredients'
-
-    dish_id = db.Column(db.Integer, db.ForeignKey('dishes.id'), primary_key=True)
-    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredients.id'), primary_key=True)
-    quantity = db.Column(db.String(50))
-    unit = db.Column(db.String(20))
-
-    dish = db.relationship('Dish', backref=db.backref('dish_ingredients', lazy=True))
-    ingredient = db.relationship('Ingredient', backref=db.backref('dish_ingredients', lazy=True))
-
-    def __repr__(self):
-        return f'<DishIngredient Dish: {self.dish_id}, Ingredient: {self.ingredient_id}>'
-
-    def serialize(self):
-        return {
-            "dish_id": self.dish_id,
-            "ingredient_id": self.ingredient_id,
-            "quantity": self.quantity,
-            "unit": self.unit
-        }
 class Favorite(db.Model):
     __tablename__ = 'favorites'
 

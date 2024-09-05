@@ -1,7 +1,7 @@
   
 import os
 from flask_admin import Admin
-from .models import db, User, Ingredient, Chat, ChatParticipant, Cocktail, CocktailIngredient, Comment, Dish, DishIngredient, Favorite, Pairing, Post, Message, Notification, Follow
+from .models import db, User, Ingredient, Chat, ChatParticipant, Cocktail, Comment, Dish, Favorite, Pairing, Post, Message, Notification, Follow
 from flask_admin.contrib.sqla import ModelView
 
 def setup_admin(app):
@@ -15,8 +15,6 @@ def setup_admin(app):
     admin.add_view(ModelView(Ingredient, db.session))
     admin.add_view(ModelView(Cocktail, db.session))
     admin.add_view(ModelView(Dish, db.session))
-    admin.add_view(ModelView(CocktailIngredient, db.session))
-    admin.add_view(ModelView(DishIngredient, db.session))
     admin.add_view(ModelView(Favorite, db.session))
     admin.add_view(ModelView(Pairing, db.session))
     admin.add_view(ModelView(Post, db.session))
