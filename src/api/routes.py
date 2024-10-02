@@ -1,5 +1,5 @@
 """
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+Este módulo se encarga de iniciar el servidor API, cargar la base de datos y agregar los endpoints.
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Ingredient, Cocktail, Dish, Favorite, Pairing
@@ -7,357 +7,351 @@ from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
 import logging
-# El módulo logging en Python se utiliza para registrar mensajes sobre eventos que ocurren durante la ejecución de un programa
-# Configurar logging en el nivel DEBUG
+
 logging.basicConfig(level=logging.DEBUG)
-# DEBUG: Información detallada, útil para diagnosticar problemas.
-# INFO: Mensajes informativos que resaltan el progreso normal de la aplicación.
-# WARNING: Indica que algo inesperado ocurrió, o que hay algún problema en el futuro (ej. uso de una función obsoleta).
-# ERROR: Indica un error que impide que una función realice su tarea.
-# CRITICAL: Un error grave, indicando que la aplicación puede no ser capaz de continuar.
 
 api = Blueprint('api', __name__)
 
-# Allow CORS requests to this API
+# Permitir solicitudes CORS
 CORS(api)
 
-# endpoints sobre usuarios
-@api.route("/users", methods = ["GET"])
+# Endpoints sobre usuarios
+@api.route("/users", methods=["GET"])
 def get_users():
     users = User.query.all()
-    return jsonify ([user.serialize() for user in users])
+    return jsonify([user.serialize() for user in users])
 
-
-@api.route("/user/<int:user_id>", methods = ["GET"])
+@api.route("/user/<int:user_id>", methods=["GET"])
 def get_user(user_id):
-    # obtiene todos los usuarios o da error
     user = User.query.get_or_404(user_id)
-    # devuelve una lista con todos los usuarios
-    return jsonify (user.serialize())
+    return jsonify(user.serialize())
 
-
-@api.route ("/new-user", methods = ["POST"])
+@api.route("/new-user", methods=["POST"])
 def create_user():
-    # obtiene la data
     data = request.json
     if not data:
-        return jsonify({"error": "No input data provided"}), 400
-    # obtiene contraseña
+        return jsonify({"error": "No se proporcionaron datos de entrada."}), 400
+    
     password = data.get("password")
     if not password:
-        return jsonify({"error": "Password is required"}), 400
-    # seguridad
-    hashed_password = generate_password_hash (password)
-    # nuevo usuario
-    new_user = User (
-        name = data.get ("name"),
-        username = data.get ("username"),
-        email = data.get ("email"),
-        password = hashed_password  
-    )
-    db.session.add (new_user)
-    db.session.commit()
-    return jsonify (new_user.serialize()), 200
-
-
-@api.route ("/user/<int:user_id>", methods =["PUT"])
-def update_user (user_id):
-    # obtiene la data
-    data =request.json
-    if not data:
-        return jsonify ({"error" : "No imput data provided"}), 400
-    # obtiene el usuario por el id
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify ({"error" : "User not found"}), 404
-    # para actualizar
-    user.name = data.get ("name", User.name)
-    user.username = data.get ("username", User.username)
-    user.email = data.get ("email", User.email)
-
-    new_password = data.get ("password")
-    if new_password:
-        User.password = generate_password_hash (new_password)
-
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error" : str(e)}), 500
-        
-        return jsonify ({"msg" : "User updated succesfuly"}), 200
+        return jsonify({"error": "La contraseña es obligatoria"}), 400
     
+    hashed_password = generate_password_hash(password)
+    new_user = User(
+        name=data.get("name"),
+        username=data.get("username"),
+        email=data.get("email"),
+        password=hashed_password
+    )
+    
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify(new_user.serialize()), 200
 
-
-@api.route("/delete-user/<int:user_id>", methods=["DELETE"])
-def delete_user(user_id):
-    # obtiene el usuario
+@api.route("/user/<int:user_id>", methods=["PUT"])
+def update_user(user_id):
+    data = request.json
+    if not data:
+        return jsonify({"error": "No se proporcionaron datos de entrada."}), 400
+    
     user = User.query.get(user_id)
-    # si no se encuentra
     if not user:
-        return jsonify({"error": "User not found"}), 404
-
+        return jsonify({"error": "Usuario no encontrado"}), 404
+    
+    # Actualizar los campos solo si están presentes en la solicitud
+    user.name = data.get("name", user.name)
+    user.username = data.get("username", user.username)
+    user.email = data.get("email", user.email)
+    
+    # Si se proporciona una nueva contraseña, actualizarla
+    new_password = data.get("password")
+    if new_password is not None:  # Cambiado de if new_password: a if new_password is not None:
+        user.password = generate_password_hash(new_password)
+    
     try:
-        # elimina
-        db.session.delete(user) 
         db.session.commit()
+        return jsonify({"msg": "Usuario actualizado correctamente"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-    return jsonify({"message": "User deleted successfully"}), 200
 
-# endpoints ingredientes
-@api.route ("/ingredients", methods = ["GET"])
+@api.route("/user/<int:user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+    
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"msg": "Usuario eliminado correctamente"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Endpoints sobre ingredientes
+@api.route("/ingredients", methods=["GET"])
 def get_ingredients():
-    # obtiene todos los ingredientes
     ingredients = Ingredient.query.all()
     return jsonify([ingredient.serialize() for ingredient in ingredients])
 
-
-@api.route ("/ingredient/<int:Ingredient_id>", methods =["GET"])
+@api.route("/ingredient/<int:Ingredient_id>", methods=["GET"])
 def get_ingredient(Ingredient_id):
-    # obtiene el ingrediente por el id o da error
     ingredient = Ingredient.query.get_or_404(Ingredient_id)
-    return jsonify (ingredient.serialize())
+    return jsonify(ingredient.serialize())
 
-
-@api.route ("/ingredient", methods = ["POST"])
+@api.route("/ingredient", methods=["POST"])
 def create_ingredient():
-    # obtiene la data
-    data = request.json
-    if not data:  # si no hay data
-        return jsonify ({"Error" : "Not imput data provided"}), 404
-    ingredient = data.get
-    if not ingredient:
-        return jsonify ({"Error" : "Ingredient is required"})
-    # nuevo ingrediente
-    new_ingredient = Ingredient (
-        name = data.get ("name"),
-        type = data.get("type")
-    )
-    db.session.add(new_ingredient)
-    db.session.commit()
-
-    return jsonify(new_ingredient.serialize())
-
-@api.route("/update-ingredient/<int:Ingredient_id>", methods=["PUT"]) 
-def update_ingredient(Ingredient_id):
-    # obtiene la data
     data = request.json
     if not data:
-        return jsonify ({"Error" : "not input data provided"}), 400
-    # busca el ingrediente por el id
+        return jsonify({"error": "No se proporcionaron datos de entrada."}), 400
+    
+    ingredient_name = data.get("name")
+    if not ingredient_name:
+        return jsonify({"error": "El nombre del ingrediente es obligatorio."}), 400
+    
+    new_ingredient = Ingredient(
+        name=data.get("name"),
+        type=data.get("type")
+    )
+    
+    db.session.add(new_ingredient)
+    db.session.commit()
+    return jsonify(new_ingredient.serialize()), 201
+
+@api.route("/ingredient/<int:Ingredient_id>", methods=["PUT"])
+def update_ingredient(Ingredient_id):
+    data = request.json
+    if not data:
+        return jsonify({"error": "No se proporcionaron datos de entrada."}), 400
+    
     ingredient = Ingredient.query.get(Ingredient_id)
     if not ingredient:
-        return jsonify ({"Error" : "Ingredient not found"}), 404
-    # actualiza ingrediente
-    ingredient.name = data.get( "name", Ingredient.name)
-    try:
-        db.session.commit()
-    except Exception as e:
-            db.session.rollback()
-            return jsonify({"error" : str(e)}), 500
-   
-
-    return jsonify ({"msg" : "Ingredient updated succesfuly"}), 200
-
-@api.route("/delete-ingredient/<int:Ingredient_id>", methods = ["DELETE"])
-def delete_ingredient(Ingredient_id):
-    # busca el ingrediente por el id
-    ingredient = Ingredient.query.get(Ingredient_id)
-    if not ingredient:
-        # si no lo encuentra
-        return jsonify ({"Error" : " Ingredient not found"}), 404
+        return jsonify({"error": "Ingrediente no encontrado"}), 404
+    
+    ingredient.name = data.get("name", ingredient.name)
     
     try:
-        # elimina ingrediente
-        db.session.delete (ingredient)
         db.session.commit()
+        return jsonify({"msg": "Ingrediente actualizado correctamente"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@api.route("/ingredient/<int:Ingredient_id>", methods=["DELETE"])
+def delete_ingredient(Ingredient_id):
+    ingredient = Ingredient.query.get(Ingredient_id)
+    if not ingredient:
+        return jsonify({"error": "Ingrediente no encontrado"}), 404
     
-    return jsonify ({"msg" : "Ingredient delete succesfuly"})
-                                                                
-# endpoints cocktails
-@api.route("/cocktails", methods = ["GET"])
-def get_cocktails():
-    # obtiene todos los cockteles
-    cocktails = Cocktail.query.all()
-    return jsonify ([cocktail.serialize() for cocktail in cocktails])
-
-
-
-@api.route ("/cocktail/<int:Cocktail_id>", methods = ["GET"])
-def get_cocktail(Cocktail_id):
-    # obtiene el cocteles por el id
-    cocktail = Cocktail.query.get_or_404(Cocktail_id)
-    return jsonify (cocktail.serialize())
-
-
-@api.route("/post-cocktail", methods =["POST"])
-def create_cocktail():
-    # busca la data
-    data = request.json
-    if not data:
-        # si no la encuentra
-        return jsonify({"Error" : "not input data provided"}), 400
-    cocktail = data.get # busca el cocktel para crear
-    if not cocktail: # si no lo encuentra
-        return jsonify ({"Error" : "Cocktail is required"}), 404
-    # nuevo coctel
-    new_cocktail = Cocktail (
-        name = data.get ("name"),
-        preparation_steps = data.get ("preparation_steps"),
-        flavor_profile = data.get ("flavor_profile")
-    )
-    db.session.add(new_cocktail)
-    db.session.commit()
-    return jsonify(new_cocktail.serialize())
-
-
-
-@api.route("/update-cocktail/<int:Cocktail_id>", methods=["PUT"])
-def update_cocktail(Cocktail_id):
-    data = request.json
-    if not data: ({"Error" : "not input data provided"}), 400
-    # busca el coctel por el id
-    cocktail = Cocktail.query.get (Cocktail_id)
-    # si no lo encuentra
-    if not cocktail: ({"Error": "Cocktail not found"}), 404
-    # actualizacion coctel
-    cocktail.name = data.get ("name", Cocktail.name)
-    cocktail.preparation_steps = data.get ("preparation_steps", Cocktail.preparation_steps)
-    cocktail.flavor_profile = data.get ("flavor_profile", Cocktail.flavor_profile)
     try:
+        db.session.delete(ingredient)
         db.session.commit()
-        return jsonify({"Success": "Cocktail updated successfully"}), 200
+        return jsonify({"msg": "Ingrediente eliminado correctamente"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"Error" : str(e)}), 500
+        return jsonify({"error": str(e)}), 500
+
+
+
+ # endpoints cocktails
+
+@api.route("/cocktails", methods=["GET"])
+def get_cocktails():
+    # Obtiene todos los cócteles
+    cocktails = Cocktail.query.all()
+    return jsonify([cocktail.serialize() for cocktail in cocktails])
+
+
+@api.route("/cocktail/<int:Cocktail_id>", methods=["GET"])
+def get_cocktail(Cocktail_id):
+    # Obtiene el cóctel por el id
+    cocktail = Cocktail.query.get_or_404(Cocktail_id)
+    return jsonify(cocktail.serialize())
+
+
+@api.route("/cocktail", methods=["POST"])
+def create_cocktail():
+    # Busca la data
+    data = request.json
+    if not data:
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
+
+    # Obtiene los campos necesarios
+    cocktail_name = data.get("name")
+    preparation_steps = data.get("preparation_steps")
+    flavor_profile = data.get("flavor_profile")
+    user_id = data.get("user_id")
+
+    # Verificaciones de campos requeridos
+    if not cocktail_name:
+        return jsonify({"Error": "El nombre del cóctel es obligatorio."}), 400
+    if preparation_steps is None:
+        return jsonify({"Error": "Los pasos de preparación son obligatorios."}), 400
+    if flavor_profile not in ['sweet', 'sour', 'bitter']:  
+        return jsonify({"Error": "El perfil de sabor debe ser válido."}), 400
+    if user_id is None:
+        return jsonify({"Error": "El ID del usuario es obligatorio."}), 400
+
+    # Nuevo cóctel
+    new_cocktail = Cocktail(
+        name=cocktail_name,
+        preparation_steps=preparation_steps,
+        flavor_profile=flavor_profile,
+        user_id=user_id  
+    )
+
+    db.session.add(new_cocktail)
+    db.session.commit()
     
+    return jsonify(new_cocktail.serialize()), 201
 
 
-@api.route("/delete-cocktail/<int:Cocktail_id>", methods=["DELETE"])
+
+@api.route("/cocktail/<int:Cocktail_id>", methods=["PUT"])
+def update_cocktail(Cocktail_id):
+    data = request.json
+    if not data:
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
+    # Busca el cóctel por el id
+    cocktail = Cocktail.query.get(Cocktail_id)
+    # Si no lo encuentra
+    if not cocktail:
+        return jsonify({"Error": "Cóctel no encontrado."}), 404
+    # Actualización cóctel
+    cocktail.name = data.get("name", cocktail.name)
+    cocktail.preparation_steps = data.get("preparation_steps", cocktail.preparation_steps)
+    cocktail.flavor_profile = data.get("flavor_profile", cocktail.flavor_profile)
+    try:
+        db.session.commit()
+        return jsonify({"Success": "Cóctel actualizado correctamente."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"Error": str(e)}), 500
+
+
+@api.route("/cocktail/<int:Cocktail_id>", methods=["DELETE"])
 def delete_cocktail(Cocktail_id):
-    # busca el coctel
+    # Busca el cóctel
     cocktail = Cocktail.query.get(Cocktail_id)
     if not cocktail:
-        return jsonify({"Error" : "Cocktail not found"}), 404
+        return jsonify({"Error": "Cóctel no encontrado."}), 404
     try:
-        # elimina
+        # Elimina
         db.session.delete(cocktail)
         db.session.commit()
     except Exception as e:
-        db.rollback()
-        return jsonify ({"Error" : str(e)}), 500
-    
-    return jsonify ({"msg" : "Ingredient delete succesfuly"})
+        db.session.rollback()
+        return jsonify({"Error": str(e)}), 500
+
+    return jsonify({"msg": "Cóctel eliminado correctamente."})
 
 
 # endpoints platos
-@api.route("/get-dishes", methods =["GET"])
+@api.route("/dishes", methods=["GET"])
 def get_dishes():
-    # obtiene todos los platos
+    # Obtiene todos los platos
     dishes = Dish.query.all()
-    return jsonify ([dish.serialize()for dish in dishes])
-    
+    return jsonify([dish.serialize() for dish in dishes])
 
 
-@api.route("/get-dish/<int:Dish_id>", methods=["GET"])
+@api.route("/dish/<int:Dish_id>", methods=["GET"])
 def get_dish(Dish_id):
-    # obtiene el plato por el id o da error
+    # Obtiene el plato por el id o da error
     dish = Dish.query.get_or_404(Dish_id)
-    return jsonify (dish.serialize())
+    return jsonify(dish.serialize())
 
 
-@api.route("/post-dish", methods=["POST"])
+@api.route("/dish", methods=["POST"])
 def post_dish():
-    data= request.json
-    if not data: ({"Error" : "not input data provided"})
+    data = request.json
+    if not data:
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
     dish = data.get
-    if not dish: ({"Error":"Dish is required"})
-    # nuevo plato
-    new_dish = Dish (
-        name = data.get ("name"),
-        preparation_steps = data.get ("preparation_steps"),
-        flavor_profile = data.get ("flavor_profile")
+    if not dish:
+        return jsonify({"Error": "El plato es necesario."}), 400
+    # Nuevo plato
+    new_dish = Dish(
+        name=data.get("name"),
+        preparation_steps=data.get("preparation_steps"),
+        flavor_profile=data.get("flavor_profile")
     )
     db.session.add(new_dish)
     db.session.commit()
     return jsonify(new_dish.serialize())
 
 
-@api.route("/update-dish/<int:Dish_id>", methods=["PUT"])
+@api.route("/dish/<int:Dish_id>", methods=["PUT"])
 def update_dish(Dish_id):
-    # convierte la data json
+    # Convierte la data json
     data = request.json
-    if not data: ({"Error" : "not input data provided"}), 400
-    # busca el plato por el id
-    dish = Dish.query.get (Dish_id)
-    if not dish: ({"Error": "Dish not found"}), 404
-    # actualizacion del plato
-    dish.name = data.get ("name", Dish.name)
-    dish.preparation_steps = data.get ("preparation_steps", Dish.preparation_steps)
-    dish.flavor_profile = data.get ("flavor_profile", Dish.flavor_profile)
-    try:
-        db.session.commit()
-        return jsonify({"Success": "Dish updated successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"Error" : str(e)}), 500
-    
-
-
-@api.route("/delete-dish/<int:Dish_id>", methods=["DELETE"])
-def delete_dish(Dish_id):
-    # obtiene plato por id
+    if not data:
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
+    # Busca el plato por el id
     dish = Dish.query.get(Dish_id)
     if not dish:
-        return jsonify({"Error" : "Dish not found"}), 404
+        return jsonify({"Error": "Plato no encontrado."}), 404
+    # Actualización del plato
+    dish.name = data.get("name", dish.name)
+    dish.preparation_steps = data.get("preparation_steps", dish.preparation_steps)
+    dish.flavor_profile = data.get("flavor_profile", dish.flavor_profile)
     try:
-        # elimina
+        db.session.commit()
+        return jsonify({"Success": "Plato actualizado correctamente."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"Error": str(e)}), 500
+
+
+@api.route("/dish/<int:Dish_id>", methods=["DELETE"])
+def delete_dish(Dish_id):
+    # Obtiene plato por id
+    dish = Dish.query.get(Dish_id)
+    if not dish:
+        return jsonify({"Error": "Plato no encontrado."}), 404
+    try:
+        # Elimina
         db.session.delete(dish)
         db.session.commit()
     except Exception as e:
-        db.rollback()
-        return jsonify ({"Error" : str(e)}), 500
-    
-    return jsonify ({"msg" : "Dish delete succesfuly"})
+        db.session.rollback()
+        return jsonify({"Error": str(e)}), 500
+
+    return jsonify({"msg": "Plato eliminado correctamente."})
 
 
 # endpoints favoritos
-@api.route("/get-favourites", methods =["GET"])
+@api.route("/favorites", methods=["GET"])
 def get_favourites():
-    # obtiene todos los favoritos
-    favorites = Favorite.query.all
-    return jsonify ([favorite.serialize() for favorite in favorites])
+    # Obtiene todos los favoritos
+    favorites = Favorite.query.all()
+    return jsonify([favorite.serialize() for favorite in favorites])
 
 
 @api.route("/get-favorite/<int:favorite_id>", methods=["GET"])
 def get_favorite(favorite_id):
-    # obtiene el favorito por el id o da error
-    favorite = Favorite.query.get_or_404 (favorite_id)
-    return jsonify (favorite.serialize())
+    # Obtiene el favorito por el id o da error
+    favorite = Favorite.query.get_or_404(favorite_id)
+    return jsonify(favorite.serialize())
 
 
-@api.route("/post-favorite", methods=["POST"])
+@api.route("/favorite", methods=["POST"])
 def create_favorite():
-    # convierte la data a json
+    # Convierte la data a json
     data = request.json
     if not data:
-        return {"Error": "No input data provided"}, 400
-# necesario
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
+    # Necesario
     user_id = data.get('user_id')
     cocktail_id = data.get('cocktail_id')
     dish_id = data.get('dish_id')
-# si no encuentra ningun id asociado a ningun plato o cocktel
+    # Si no encuentra ningún id asociado a ningún plato o cóctel
     if not user_id or (not cocktail_id and not dish_id):
-        return {"Error": "User ID and either Cocktail ID or Dish ID are required"}, 400
-# si encuentra un id de plato y de cocktel
+        return jsonify({"Error": "Se requieren el ID de usuario y ya sea el ID de cóctel o de plato."}), 400
+    # Si encuentra un id de plato y de cóctel
     if cocktail_id and dish_id:
-        return {"Error": "You can only favorite either a dish or a cocktail, not both"}, 400
+        return jsonify({"Error": "Solo puedes marcar como favorito un plato o un cóctel, no ambos."}), 400
 
     # Crear el favorito
     new_favorite = Favorite(
@@ -369,21 +363,20 @@ def create_favorite():
     try:
         db.session.add(new_favorite)
         db.session.commit()
-        return new_favorite.serialize(), 201
+        return jsonify(new_favorite.serialize()), 201
     except Exception as e:
         db.session.rollback()
         # Agregar el logging del error
-        logging.exception("Error occurred during favorite creation")
+        logging.exception("Ocurrió un error durante la creación del favorito.")
         # Devolver el mensaje de error exacto
-        return {"Error": str(e)}, 500
-    
+        return jsonify({"Error": str(e)}), 500
 
 
-@api.route("/update-favorite/<int:fav_id>", methods=["PUT"])
+@api.route("/favorite/<int:fav_id>", methods=["PUT"])
 def update_favorite(fav_id):
     data = request.json
     if not data:
-        return {"Error": "No input data provided"}, 400
+        return jsonify({"Error": "No se proporcionaron datos de entrada."}), 400
 
     # Obtener los nuevos valores de cocktail_id y dish_id
     cocktail_id = data.get('cocktail_id')
@@ -391,12 +384,12 @@ def update_favorite(fav_id):
 
     # Verificar si al menos uno de los IDs se proporciona
     if not cocktail_id and not dish_id:
-        return {"Error": "Either Cocktail ID or Dish ID is required"}, 400
+        return jsonify({"Error": "Se requiere el ID de cóctel o el ID de plato."}), 400
 
     # Buscar el favorito existente
     favorite = Favorite.query.get(fav_id)
     if not favorite:
-        return {"Error": "Favorite not found"}, 404
+        return jsonify({"Error": "Favorito no encontrado."}), 404
 
     # Actualizar los campos según los datos proporcionados
     if cocktail_id is not None:
@@ -406,40 +399,96 @@ def update_favorite(fav_id):
 
     try:
         db.session.commit()
-        return favorite.serialize(), 200
+        return jsonify(favorite.serialize()), 200
     except Exception as e:
         db.session.rollback()
-        # Log the error for debugging
-        logging.error("Error committing to the database: %s", str(e))
-        return {"Error": str(e)}, 500
+        # Registrar el error para depuración
+        logging.error("Error al guardar en la base de datos: %s", str(e))
+        return jsonify({"Error": str(e)}), 500
 
 
-
-@api.route("/delete-favorite/<int:favorite_id>", methods=["DELETE"])
+@api.route("/favorite/<int:favorite_id>", methods=["DELETE"])
 def delete_favorite(favorite_id):
     favorite = Favorite.query.get(favorite_id)
     if not favorite:
-        return {"Error": "Favorite not found"}, 404
+        return jsonify({"Error": "Favorito no encontrado."}), 404
 
     try:
-              # elimina
+        # Elimina
         db.session.delete(favorite)
         db.session.commit()
     except Exception as e:
-        db.rollback()
-        return jsonify ({"Error" : str(e)}), 500
-    
-    return jsonify ({"msg" : "Favorite delete succesfuly"})
+        db.session.rollback()
+        return jsonify({"Error": str(e)}), 500
+
+    return jsonify({"msg": "Favorito eliminado"}), 200
 
 
 
 
-@api.route("/get-pairings", methods =["GET"])
+
+@api.route("/pairings", methods=["GET"])
 def get_pairings():
     pairings = Pairing.query.all()
     return jsonify([pairing.serialize() for pairing in pairings])
 
 
-@api.route("/get-pairing/<int:pairing_id>")
+@api.route("/pairing/<int:pairing_id>", methods=["GET"])
 def get_pairing(pairing_id):
-    
+    # obtiene el emparejamiento por el id o da error
+    pairing = Pairing.query.get_or_404(pairing_id)
+    return jsonify(pairing.serialize())
+
+
+@api.route("/pairing", methods=["POST"])
+def create_pairing():
+    data = request.get_json()
+
+    user_id = data.get('user_id')
+    cocktail_id = data.get('cocktail_id')
+    dish_id = data.get('dish_id')
+
+    if not all([user_id, cocktail_id, dish_id]):
+        return jsonify({'error': 'Faltan campos requeridos'}), 400
+
+    new_pairing = Pairing(user_id=user_id, cocktail_id=cocktail_id, dish_id=dish_id)
+
+    db.session.add(new_pairing)
+    db.session.commit()
+
+    return jsonify(new_pairing.serialize()), 201
+
+
+@api.route('/pairing/<int:pairing_id>', methods=['PUT'])
+def update_pairing(pairing_id):
+    data = request.get_json()
+    pairing = Pairing.query.get_or_404(pairing_id)
+
+    # Actualizar los campos si están presentes en la solicitud
+    if 'user_id' in data:
+        pairing.user_id = data['user_id']
+    if 'cocktail_id' in data:
+        pairing.cocktail_id = data['cocktail_id']
+    if 'dish_id' in data:
+        pairing.dish_id = data['dish_id']
+
+    db.session.commit()
+
+    return jsonify(pairing.serialize()), 200
+
+
+@api.route('/pairing/<int:pairing_id>', methods=['DELETE'])
+def delete_pairing(pairing_id):
+    pairing = Pairing.query.get_or_404(pairing_id)
+
+    db.session.delete(pairing)
+    db.session.commit()
+
+    return jsonify({"mensaje": "Emparejamiento eliminado correctamente"}), 200
+
+
+
+
+
+if __name__ == '__main__':
+    api.run(debug=True)
